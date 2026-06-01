@@ -1,0 +1,174 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        (
+          request.auth.token.admin == true ||
+          request.auth.token.role == 'admin'
+        );
+    }
+
+    function isOwnerUid(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function createOwnUserDoc() {
+      return isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    function readOwnUserDoc() {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    function keepUserIdStable() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    function canCreateShowtimeReminder(reminderId) {
+      return createOwnUserDoc() &&
+        request.resource.data.bookingId == reminderId &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.scheduledFor is timestamp &&
+        request.resource.data.showStartAt is timestamp &&
+        request.resource.data.targetTokens is list &&
+        request.resource.data.targetTokens.size() > 0;
+    }
+
+    function canUpdateShowtimeReminder() {
+      return readOwnUserDoc() &&
+        keepUserIdStable() &&
+        request.resource.data.bookingId == resource.data.bookingId;
+    }
+
+    function canWriteShowtimeSeatBooking(showtimeId, bookingId) {
+      let bookingPath = /databases/$(database)/documents/bookings/$(bookingId);
+      return isSignedIn() &&
+        exists(bookingPath) &&
+        request.resource.data.bookingId == bookingId &&
+        request.resource.data.showtimeId == showtimeId &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.seats == get(bookingPath).data.seats &&
+        get(bookingPath).data.userId == request.auth.uid &&
+        get(bookingPath).data.showtimeId == showtimeId;
+    }
+
+    function canWriteShowtimeSeatReservation(showtimeId, reservationId) {
+      let reservationPath = /databases/$(database)/documents/reservations/$(reservationId);
+      return isSignedIn() &&
+        exists(reservationPath) &&
+        request.resource.data.reservationId == reservationId &&
+        request.resource.data.showtimeId == showtimeId &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.seats == get(reservationPath).data.seats &&
+        request.resource.data.expiresAt == get(reservationPath).data.expiresAt &&
+        get(reservationPath).data.userId == request.auth.uid &&
+        get(reservationPath).data.showtimeId == showtimeId;
+    }
+
+    // User profile
+    match /users/{userId} {
+      allow create: if isOwnerUid(userId);
+      allow read, update, delete: if isOwnerUid(userId) || isAdmin();
+    }
+
+    // Public catalog data
+    match /movies/{movieId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /showtimes/{showtimeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /theaters/{theaterId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Booking/payment domain
+    match /bookings/{bookingId} {
+      allow create: if createOwnUserDoc();
+      allow read: if readOwnUserDoc() || isAdmin();
+      allow update: if (readOwnUserDoc() && keepUserIdStable()) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /showtimeReminders/{reminderId} {
+      allow create: if canCreateShowtimeReminder(reminderId);
+      allow read: if readOwnUserDoc() || isAdmin();
+      allow update: if canUpdateShowtimeReminder() || isAdmin();
+      allow delete: if readOwnUserDoc() || isAdmin();
+    }
+
+    match /reservations/{reservationId} {
+      allow create: if createOwnUserDoc();
+      allow read: if readOwnUserDoc() || isAdmin();
+      allow update: if (readOwnUserDoc() && keepUserIdStable()) || isAdmin();
+      allow delete: if readOwnUserDoc() || isAdmin();
+    }
+
+    // Public seat-state by showtime (no booking detail exposure)
+    match /showtimeSeatStates/{showtimeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /bookings/{bookingId} {
+        allow read: if true;
+        allow create, update: if canWriteShowtimeSeatBooking(showtimeId, bookingId);
+        allow delete: if isAdmin();
+      }
+
+      match /reservations/{reservationId} {
+        allow read: if true;
+        allow create, update: if canWriteShowtimeSeatReservation(showtimeId, reservationId);
+        allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      }
+    }
+
+    match /transactions/{transactionId} {
+      allow create: if createOwnUserDoc();
+      allow read: if readOwnUserDoc() || isAdmin();
+      allow update: if (readOwnUserDoc() && keepUserIdStable()) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Reviews can be public for timeline view
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if createOwnUserDoc();
+      allow update: if (readOwnUserDoc() && keepUserIdStable()) || isAdmin();
+      allow delete: if readOwnUserDoc() || isAdmin();
+    }
+
+    // Cinema diary logs: public if visibility == 'public', otherwise owner/admin only
+    match /logs/{logId} {
+      allow read: if resource.data.visibility == 'public' || readOwnUserDoc() || isAdmin();
+      allow create: if createOwnUserDoc();
+      allow update, delete: if (readOwnUserDoc() && keepUserIdStable()) || isAdmin();
+    }
+
+    // Favorites / watchlist records
+    match /favorites/{favoriteId} {
+      allow create: if createOwnUserDoc();
+      allow read: if readOwnUserDoc() || isAdmin();
+      allow update, delete: if (readOwnUserDoc() && keepUserIdStable()) || isAdmin();
+    }
+
+    // Deny everything else by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

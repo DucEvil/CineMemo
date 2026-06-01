@@ -1,0 +1,2 @@
+Dat file QR MoMo cua ban tai day va dat ten: momo_qr.png
+Duong dan day du: assets/images/momo_qr.png

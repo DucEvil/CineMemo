@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "150666245622",
+    "project_id": "cinememo-app",
+    "storage_bucket": "cinememo-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:150666245622:android:43a5b0781a99635d0343d7",
+        "android_client_info": {
+          "package_name": "com.cinememo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "150666245622-nu8340ur7butqnu8midelkf8qijgsgug.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cinememo.app",
+            "certificate_hash": "7643f3ef9abbfed4dc47caab168630506de47651"
+          }
+        },
+        {
+          "client_id": "150666245622-iu7vf136k2t810rl85e5sqth2f11sjr8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcNEN6xgPhd3GzY6tO6X7yDLG5g-Yk0Hw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "150666245622-h451v6sqc52ql983n6mdjm3roqrdlq30.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

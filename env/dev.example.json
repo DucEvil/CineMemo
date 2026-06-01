@@ -1,0 +1,17 @@
+{
+  "MOMO_MERCHANT_CODE": "your_partner_code",
+  "MOMO_ACCESS_KEY": "your_access_key",
+  "MOMO_SECRET_KEY": "your_secret_key",
+  "MOMO_PAYMENT_MODE": "personal_qr",
+  "MOMO_SANDBOX_MODE": "true",
+  "MOMO_APP_SCHEME": "cinememo",
+  "MOMO_CALLBACK_HOST": "payment-callback",
+  "MOMO_IPN_URL": "https://your-server.com/momo-ipn",
+  "TICKET_EMAIL_SMTP_HOST": "smtp.gmail.com",
+  "TICKET_EMAIL_SMTP_PORT": "465",
+  "TICKET_EMAIL_SMTP_SSL": "true",
+  "TICKET_EMAIL_SMTP_USERNAME": "your_sender@gmail.com",
+  "TICKET_EMAIL_SMTP_PASSWORD": "your_16_char_gmail_app_password",
+  "TICKET_EMAIL_SENDER_EMAIL": "your_sender@gmail.com",
+  "TICKET_EMAIL_SENDER_NAME": "CineMemo"
+}
