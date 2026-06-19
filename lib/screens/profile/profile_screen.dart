@@ -22,7 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _uploadingAvatar = false;
 
   static final Uri _zohoFormUri = Uri.parse(
-    'https://forms.zohopublic.com/dodinhduc2311gm1/form/nhgitrangweb/formperma/ZYqNNeLUnPbcr6l9dODEvXtDz-bHo1gWosimhXgLjMs',
+    'https://nhom6ca4.zoholandingpage.com/form-feedback/',
   );
 
   Future<void> _openZohoForm(BuildContext context) async {
@@ -519,7 +519,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               side: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             leading: const Icon(Icons.auto_stories_rounded),
-            title: Text('Xem nhật ký của tôi (${reviewProvider.reviewCount})'),
+            title: Text('Nhật ký của tôi (${reviewProvider.reviewCount})'),
             subtitle: const Text('Sửa, xóa và quản lý nhật ký cá nhân'),
             onTap: () => Navigator.pushNamed(context, AppRoutes.myReviews),
           ),
