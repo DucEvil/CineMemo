@@ -14,15 +14,6 @@
     'MOVIE_API_TOKEN',
   );
 
-  static const String cloudinaryCloudName = String.fromEnvironment(
-    'CLOUDINARY_CLOUD_NAME',
-    defaultValue: 'dwfxs0im6',
-  );
-  static const String cloudinaryUploadPreset = String.fromEnvironment(
-    'CLOUDINARY_UPLOAD_PRESET',
-    defaultValue: 'cinememo_app',
-  );
-
   static const String momoMerchantCode = String.fromEnvironment(
     'MOMO_MERCHANT_CODE',
   );
@@ -87,15 +78,18 @@
   static const String ticketEmailSenderEmail = String.fromEnvironment(
     'TICKET_EMAIL_SENDER_EMAIL',
   );
+  static const String ticketEmailFunctionUrl = String.fromEnvironment(
+    'TICKET_EMAIL_FUNCTION_URL',
+  );
+
+  static bool get hasTicketEmailFunction =>
+      ticketEmailFunctionUrl.trim().isNotEmpty;
 
   static bool get hasWeatherKey => weatherApiKey.isNotEmpty;
 
   static bool get hasMovieApi =>
       vietnamMovieApiBaseUrl.isNotEmpty &&
       vietnamMovieApiBaseUrl.startsWith('http');
-
-  static bool get hasCloudinaryConfig =>
-      cloudinaryCloudName.isNotEmpty && cloudinaryUploadPreset.isNotEmpty;
 
   static bool get hasMomoPersonalQrPayload =>
       momoPersonalQrPayload.trim().isNotEmpty;
@@ -127,8 +121,13 @@
 
   static bool get useMomoPersonalQrMode => !useMomoGatewayMode;
 
-  static bool get hasTicketEmailConfig =>
-      ticketEmailSmtpHost.trim().isNotEmpty &&
-      ticketEmailSmtpUsername.trim().isNotEmpty &&
-      ticketEmailSmtpPassword.trim().isNotEmpty;
+  // Trả về true nếu đã cấu hình Cloud Function gửi email hoặc cấu hình đầy đủ SMTP
+  static bool get hasTicketEmailConfig {
+    final smtpConfigured =
+        ticketEmailSmtpHost.trim().isNotEmpty &&
+        ticketEmailSmtpUsername.trim().isNotEmpty &&
+        ticketEmailSmtpPassword.trim().isNotEmpty;
+
+    return hasTicketEmailFunction || smtpConfigured;
+  }
 }

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 
@@ -18,8 +19,6 @@ class TicketEmailResult {
 }
 
 class TicketEmailService {
-  static const String _gmailSmtpHost = 'smtp.gmail.com';
-
   String _formatDateTime(DateTime value) {
     final local = value.toLocal();
     final day = local.day.toString().padLeft(2, '0');
@@ -59,29 +58,36 @@ class TicketEmailService {
       );
     }
 
+    if (AppConfig.hasTicketEmailFunction) {
+      return await _sendTicketEmailViaFunction(
+        recipientEmail: normalizedRecipient,
+        bookingId: bookingId,
+        ticketCode: ticketCode,
+        qrPayload: qrPayload,
+        movieTitle: movieTitle,
+        theaterName: theaterName,
+        showtimeLabel: showtimeLabel,
+        seats: seats,
+        totalPrice: totalPrice,
+        showStartAt: showStartAt,
+      );
+    }
+
     if (!AppConfig.hasTicketEmailConfig) {
       return const TicketEmailResult(
         attempted: false,
         success: false,
-        message: 'Chưa cấu hình SMTP gửi email vé.',
+        message: 'Chưa cấu hình SMTP gửi email vé và Cloud Function gửi email.',
       );
     }
 
     final smtpHost = AppConfig.ticketEmailSmtpHost.trim().toLowerCase();
-    if (smtpHost != _gmailSmtpHost) {
-      return const TicketEmailResult(
-        attempted: false,
-        success: false,
-        message: 'Chỉ hỗ trợ gửi vé qua Gmail SMTP (smtp.gmail.com).',
-      );
-    }
-
     final senderEmail = AppConfig.ticketEmailSenderEmail.trim().isNotEmpty
         ? AppConfig.ticketEmailSenderEmail.trim()
         : AppConfig.ticketEmailSmtpUsername.trim();
 
     final smtpServer = SmtpServer(
-      _gmailSmtpHost,
+      smtpHost,
       port: AppConfig.ticketEmailSmtpPort,
       ssl: AppConfig.ticketEmailSmtpUseSsl,
       username: AppConfig.ticketEmailSmtpUsername.trim(),
@@ -149,6 +155,78 @@ class TicketEmailService {
         attempted: true,
         success: false,
         message: 'Gửi email thất bại. Vui lòng thử lại sau.',
+      );
+    }
+  }
+
+  Future<TicketEmailResult> _sendTicketEmailViaFunction({
+    required String recipientEmail,
+    required String bookingId,
+    required String ticketCode,
+    required String qrPayload,
+    required String movieTitle,
+    required String theaterName,
+    required String showtimeLabel,
+    required List<String> seats,
+    required double totalPrice,
+    DateTime? showStartAt,
+  }) async {
+    if (!AppConfig.hasTicketEmailFunction) {
+      return const TicketEmailResult(
+        attempted: false,
+        success: false,
+        message: 'Cloud Function gửi email chưa được cấu hình.',
+      );
+    }
+
+    final dio = Dio();
+    try {
+      final response = await dio.post(
+        AppConfig.ticketEmailFunctionUrl,
+        data: {
+          'recipientEmail': recipientEmail,
+          'bookingId': bookingId,
+          'ticketCode': ticketCode,
+          'qrPayload': qrPayload,
+          'movieTitle': movieTitle,
+          'theaterName': theaterName,
+          'showtimeLabel': showtimeLabel,
+          'seats': seats,
+          'totalPrice': totalPrice,
+          if (showStartAt != null) 'showStartAt': showStartAt.toIso8601String(),
+        },
+      );
+
+      final data = response.data;
+      if (response.statusCode == 200 && data is Map<String, dynamic>) {
+        final success = data['success'] == true;
+        final message =
+            data['message']?.toString() ??
+            (success ? 'Email vé đã được gửi.' : 'Gửi email thất bại.');
+        return TicketEmailResult(
+          attempted: true,
+          success: success,
+          message: message,
+        );
+      }
+
+      return TicketEmailResult(
+        attempted: true,
+        success: false,
+        message: 'Gửi email thất bại: response không hợp lệ.',
+      );
+    } on DioException catch (error) {
+      return TicketEmailResult(
+        attempted: true,
+        success: false,
+        message:
+            'Gửi email thất bại: ${error.message ?? 'Lỗi kết nối đến server.'}',
+      );
+    } catch (error) {
+      return TicketEmailResult(
+        attempted: true,
+        success: false,
+        message: 'Gửi email thất bại: ${error.toString()}',
       );
     }
   }

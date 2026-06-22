@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/review_provider.dart';
-import '../../services/storage/cloudinary_service.dart';
+import '../../services/firebase/firebase_storage_service.dart';
 import '../../utils/app_routes.dart';
 import '../../widgets/common/custom_bottom_nav_bar.dart';
 
@@ -248,53 +248,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    final cloudinaryService = Provider.of<CloudinaryService>(
+    final storageService = Provider.of<FirebaseStorageService>(
       context,
       listen: false,
     );
-    if (!cloudinaryService.isConfigured) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Chưa cấu hình Cloudinary để upload ảnh đại diện.'),
-        ),
-      );
-      return;
-    }
 
     setState(() => _uploadingAvatar = true);
     try {
-      final uploadedUrl = await cloudinaryService.uploadImage(
-        filePath: file.path,
-        folder: 'cinememo/avatars',
-      );
+      try {
+        final uploadedUrl = await storageService.uploadFile(
+          folder: 'cinememo/avatars',
+          file: file,
+          ownerUid: auth.uid,
+        );
 
-      if (!context.mounted) {
-        return;
-      }
+        if (!context.mounted) {
+          return;
+        }
 
-      if (uploadedUrl == null || uploadedUrl.trim().isEmpty) {
+        if (uploadedUrl == null || uploadedUrl.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Upload ảnh thất bại. Vui lòng thử lại.'),
+            ),
+          );
+          return;
+        }
+
+        final success = await auth.updatePhotoUrl(uploadedUrl);
+        if (!context.mounted) {
+          return;
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Upload ảnh thất bại. Vui lòng thử lại.'),
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Đã cập nhật ảnh đại diện.'
+                  : (auth.error ?? 'Không thể cập nhật ảnh đại diện.'),
+            ),
           ),
         );
-        return;
+      } catch (error, st) {
+        // log and show user-friendly message
+        // ignore: avoid_print
+        print('Avatar upload error: $error\n$st');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi khi upload ảnh: ${error.toString()}')),
+          );
+        }
       }
-
-      final success = await auth.updatePhotoUrl(uploadedUrl);
-      if (!context.mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? 'Đã cập nhật ảnh đại diện.'
-                : (auth.error ?? 'Không thể cập nhật ảnh đại diện.'),
-          ),
-        ),
-      );
     } finally {
       if (mounted) {
         setState(() => _uploadingAvatar = false);

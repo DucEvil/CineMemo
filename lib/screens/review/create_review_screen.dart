@@ -13,7 +13,7 @@ import '../../providers/movie_provider.dart';
 import '../../providers/review_provider.dart';
 import '../../services/firebase/firebase_firestore_service.dart';
 import '../../services/location/location_service.dart';
-import '../../services/storage/cloudinary_service.dart';
+import '../../services/firebase/firebase_storage_service.dart';
 import '../../services/weather/weather_service.dart';
 import '../../widgets/common/rating_stars.dart';
 
@@ -260,7 +260,10 @@ class _CreateReviewScreenState extends State<CreateReviewScreen> {
   }
 
   Future<void> _loadWeatherAndLocation() async {
-    final locationService = Provider.of<LocationService>(context, listen: false);
+    final locationService = Provider.of<LocationService>(
+      context,
+      listen: false,
+    );
     final weatherService = Provider.of<WeatherService>(context, listen: false);
 
     final position = await locationService.getCurrentPosition();
@@ -411,8 +414,14 @@ class _CreateReviewScreenState extends State<CreateReviewScreen> {
       return;
     }
 
-    final cloudinaryService = Provider.of<CloudinaryService>(context, listen: false);
-    final firestoreService = Provider.of<FirebaseFirestoreService>(context, listen: false);
+    final storageService = Provider.of<FirebaseStorageService>(
+      context,
+      listen: false,
+    );
+    final firestoreService = Provider.of<FirebaseFirestoreService>(
+      context,
+      listen: false,
+    );
     final reviewProvider = Provider.of<ReviewProvider>(context, listen: false);
 
     setState(() => _submitting = true);
@@ -421,10 +430,27 @@ class _CreateReviewScreenState extends State<CreateReviewScreen> {
       String? uploadedImageUrl;
       final selectedImage = _selectedImage;
       if (selectedImage != null) {
-        uploadedImageUrl = await cloudinaryService.uploadImage(
-          filePath: selectedImage.path,
-          folder: 'cinememo/reviews',
-        );
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        try {
+          uploadedImageUrl = await storageService.uploadFile(
+            folder: 'cinememo/reviews',
+            file: selectedImage,
+            ownerUid: auth.uid,
+          );
+        } catch (error, st) {
+          // log and show user-friendly message
+          // ignore: avoid_print
+          print('Review image upload error: $error\n$st');
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Lỗi khi upload ảnh: ${error.toString()}'),
+              ),
+            );
+          }
+          // stop submission if upload failed
+          return;
+        }
       }
 
       final editingReview = _editingReview;

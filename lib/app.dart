@@ -18,7 +18,7 @@ import 'services/integrations/ticket_email_service.dart';
 import 'services/location/location_service.dart';
 import 'services/notifications/showtime_reminder_service.dart';
 import 'services/payment/momo_payment_service.dart';
-import 'services/storage/cloudinary_service.dart';
+import 'services/firebase/firebase_storage_service.dart';
 import 'services/storage/local_storage_service.dart';
 import 'services/utils/network_info.dart';
 import 'services/weather/weather_service.dart';
@@ -51,7 +51,7 @@ class CineMemoRootApp extends StatelessWidget {
         Provider(create: (_) => VietnamMovieApi()),
         Provider(create: (_) => LocationService()),
         Provider(create: (_) => WeatherService()),
-        Provider(create: (_) => CloudinaryService()),
+        Provider(create: (_) => FirebaseStorageService()),
         Provider(create: (_) => MomoPaymentService()),
         Provider(
           create: (_) {
