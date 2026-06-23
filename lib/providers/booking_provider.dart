@@ -341,6 +341,11 @@ class BookingProvider extends ChangeNotifier {
     _calendarSynced = false;
     _calendarSyncMessage = null;
 
+    final isGoogleAccount = details['isGoogleAccount'] == true;
+    if (!isGoogleAccount) {
+      return;
+    }
+
     final movieTitle = (details['movieTitle'] as String? ?? 'Phim').trim();
     final theaterName = (details['theaterName'] as String? ?? '').trim();
     final theaterAddress = (details['theaterAddress'] as String? ?? '').trim();
@@ -407,6 +412,12 @@ class BookingProvider extends ChangeNotifier {
     final showtimeLabel = (details['showtimeLabel'] as String? ?? '').trim();
     final seats = _selectedSeats.toList()..sort();
     final showStartAt = _showStartAtFrom(showtimeId, details);
+
+    if (userEmail.isEmpty) {
+      _ticketEmailSent = false;
+      _ticketEmailMessage = 'Không có email Google để gửi vé.';
+      return;
+    }
 
     final result = await _ticketEmailService.sendTicketEmail(
       recipientEmail: userEmail,

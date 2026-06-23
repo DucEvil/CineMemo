@@ -558,21 +558,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               borderRadius: BorderRadius.circular(12),
               side: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
-            leading: const Icon(Icons.smart_toy_rounded),
-            title: const Text('Gemini / Dịch thuật AI'),
-            subtitle: const Text(
-              'Gửi yêu cầu AI qua Cloud Firestore extension',
-            ),
-            onTap: () =>
-                Navigator.pushNamed(context, AppRoutes.geminiTranslation),
-          ),
-          const SizedBox(height: 8),
-          ListTile(
-            tileColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
             leading: const Icon(Icons.description_rounded),
             title: const Text('Gửi phản hồi (Zoho Form)'),
             subtitle: const Text('Mở form góp ý trong tab mới'),

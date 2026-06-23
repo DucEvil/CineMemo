@@ -37,7 +37,10 @@ class AppBootstrap {
         options: DefaultFirebaseOptions.currentPlatform,
       );
       return true;
-    } catch (_) {
+    } catch (error) {
+      // Log but don't crash - app can work with limited functionality
+      // ignore: avoid_print
+      print('Firebase initialization warning: $error');
       return false;
     }
   }

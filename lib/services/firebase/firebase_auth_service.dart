@@ -98,6 +98,28 @@ class FirebaseAuthService {
       return null;
     }
 
+    final auth = _auth;
+    if (auth == null) {
+      return null;
+    }
+
+    if (kIsWeb) {
+      if (requiredScopes.isEmpty) {
+        return null;
+      }
+      final provider = GoogleAuthProvider();
+      provider.addScope('email');
+      for (final scope in requiredScopes) {
+        provider.addScope(scope);
+      }
+      final result = await auth.signInWithPopup(provider);
+      final credential = result.credential;
+      if (credential is OAuthCredential) {
+        return credential.accessToken;
+      }
+      return null;
+    }
+
     GoogleSignInAccount? account = googleSignIn.currentUser;
     account ??= await googleSignIn.signInSilently();
     if (account == null) {

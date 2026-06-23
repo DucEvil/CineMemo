@@ -1,4 +1,5 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
 
 class FirebaseAnalyticsService {
   FirebaseAnalyticsService({FirebaseAnalytics? analytics})
@@ -10,32 +11,49 @@ class FirebaseAnalyticsService {
       FirebaseAnalyticsObserver(analytics: _analytics);
 
   Future<void> logAppOpen() async {
-    await _analytics.logAppOpen();
+    try {
+      await _analytics.logAppOpen();
+    } catch (e) {
+      // Platform-specific method, may fail on some platforms
+      if (kDebugMode) print('Analytics error (logAppOpen): $e');
+    }
   }
 
   Future<void> logScreenView({required String screenName}) async {
-    await _analytics.logScreenView(screenName: screenName);
+    try {
+      await _analytics.logScreenView(screenName: screenName);
+    } catch (e) {
+      if (kDebugMode) print('Analytics error (logScreenView): $e');
+    }
   }
 
   Future<void> logSearch({required String searchTerm}) async {
-    await _analytics.logEvent(
-      name: 'search',
-      parameters: {'search_term': searchTerm},
-    );
+    try {
+      await _analytics.logEvent(
+        name: 'search',
+        parameters: {'search_term': searchTerm},
+      );
+    } catch (e) {
+      if (kDebugMode) print('Analytics error (logSearch): $e');
+    }
   }
 
   Future<void> logMovieViewed({
     required String movieId,
     String? movieTitle,
   }) async {
-    await _analytics.logEvent(
-      name: 'movie_viewed',
-      parameters: {
-        'movie_id': movieId,
-        if (movieTitle != null && movieTitle.isNotEmpty)
-          'movie_title': movieTitle,
-      },
-    );
+    try {
+      await _analytics.logEvent(
+        name: 'movie_viewed',
+        parameters: {
+          'movie_id': movieId,
+          if (movieTitle != null && movieTitle.isNotEmpty)
+            'movie_title': movieTitle,
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) print('Analytics error (logMovieViewed): $e');
+    }
   }
 
   Future<void> logBookingComplete({
@@ -45,34 +63,46 @@ class FirebaseAnalyticsService {
     required double totalPrice,
     String? movieTitle,
   }) async {
-    await _analytics.logEvent(
-      name: 'booking_complete',
-      parameters: {
-        'booking_id': bookingId,
-        'showtime_id': showtimeId,
-        'ticket_count': ticketCount,
-        'total_price': totalPrice,
-        if (movieTitle != null && movieTitle.isNotEmpty)
-          'movie_title': movieTitle,
-      },
-    );
+    try {
+      await _analytics.logEvent(
+        name: 'booking_complete',
+        parameters: {
+          'booking_id': bookingId,
+          'showtime_id': showtimeId,
+          'ticket_count': ticketCount,
+          'total_price': totalPrice,
+          if (movieTitle != null && movieTitle.isNotEmpty)
+            'movie_title': movieTitle,
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) print('Analytics error (logBookingComplete): $e');
+    }
   }
 
   Future<void> logAccountCreated({
     required String method,
     String? emailDomain,
   }) async {
-    await _analytics.logEvent(
-      name: 'account_created',
-      parameters: {
-        'method': method,
-        if (emailDomain != null && emailDomain.isNotEmpty)
-          'email_domain': emailDomain,
-      },
-    );
+    try {
+      await _analytics.logEvent(
+        name: 'account_created',
+        parameters: {
+          'method': method,
+          if (emailDomain != null && emailDomain.isNotEmpty)
+            'email_domain': emailDomain,
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) print('Analytics error (logAccountCreated): $e');
+    }
   }
 
   Future<void> logEvent(String name, {Map<String, Object>? parameters}) async {
-    await _analytics.logEvent(name: name, parameters: parameters);
+    try {
+      await _analytics.logEvent(name: name, parameters: parameters);
+    } catch (e) {
+      if (kDebugMode) print('Analytics error (logEvent): $e');
+    }
   }
 }

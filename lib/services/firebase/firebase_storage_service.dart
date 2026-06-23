@@ -25,15 +25,21 @@ class FirebaseStorageService {
   }) async {
     final bytes = await file.readAsBytes();
     if (bytes.isEmpty) {
-      return null;
+      throw Exception('Tệp ảnh trống. Vui lòng chọn ảnh khác.');
     }
 
     final fileName = file.name.trim().isEmpty
         ? 'file_${DateTime.now().millisecondsSinceEpoch}'
         : file.name.trim().replaceAll(RegExp(r'\s+'), '_');
     final storagePath = '$folder/$fileName';
+
+    // Ensure content type is set, default to image/jpeg if not detected
+    final contentType = (file.mimeType?.trim().isEmpty ?? true)
+        ? 'image/jpeg'
+        : file.mimeType;
+
     final metadata = SettableMetadata(
-      contentType: file.mimeType,
+      contentType: contentType,
       customMetadata: ownerUid != null ? {'uid': ownerUid} : null,
     );
 
@@ -43,8 +49,21 @@ class FirebaseStorageService {
       await uploadTask.whenComplete(() {});
       return await ref.getDownloadURL();
     } catch (error) {
-      // surface a clearer message for client-side handling
-      throw Exception('Firebase Storage upload failed: $error');
+      // Provide clearer error messages based on error type
+      if (error.toString().contains('Permission denied')) {
+        throw Exception(
+          'Không có quyền tải lên. Vui lòng đảm bảo bạn đã đăng nhập.',
+        );
+      } else if (error.toString().contains('Unauthorized')) {
+        throw Exception(
+          'Yêu cầu xác thực không thành công. Vui lòng đăng nhập lại.',
+        );
+      } else if (error.toString().contains('Network')) {
+        throw Exception(
+          'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.',
+        );
+      }
+      throw Exception('Lỗi khi upload ảnh: $error');
     }
   }
 
