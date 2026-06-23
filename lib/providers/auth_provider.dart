@@ -1,7 +1,10 @@
-﻿import 'package:flutter/foundation.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../services/firebase/firebase_analytics_service.dart';
 import '../services/firebase/firebase_auth_service.dart';
 import '../services/firebase/firebase_firestore_service.dart';
 
@@ -9,13 +12,16 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider({
     required FirebaseAuthService authService,
     required FirebaseFirestoreService firestoreService,
+    required FirebaseAnalyticsService analyticsService,
     required bool firebaseEnabled,
   }) : _authService = authService,
        _firestoreService = firestoreService,
+       _analyticsService = analyticsService,
        _firebaseEnabled = firebaseEnabled;
 
   final FirebaseAuthService _authService;
   final FirebaseFirestoreService _firestoreService;
+  final FirebaseAnalyticsService _analyticsService;
   final bool _firebaseEnabled;
 
   User? _currentUser;
@@ -193,6 +199,18 @@ class AuthProvider extends ChangeNotifier {
         },
       );
       await _loadProfile();
+
+      final isNewUser = credential?.additionalUserInfo?.isNewUser ?? false;
+      if (isNewUser) {
+        final emailDomain = user.email?.split('@').last;
+        unawaited(
+          _analyticsService.logAccountCreated(
+            method: 'google',
+            emailDomain: emailDomain,
+          ),
+        );
+      }
+
       return true;
     } catch (error) {
       _error = error.toString();
@@ -289,6 +307,16 @@ class AuthProvider extends ChangeNotifier {
           'createdAt': FieldValue.serverTimestamp(),
           'lastLoginAt': FieldValue.serverTimestamp(),
         },
+      );
+
+      final emailDomain = normalizedEmail.contains('@')
+          ? normalizedEmail.split('@').last
+          : null;
+      unawaited(
+        _analyticsService.logAccountCreated(
+          method: 'email',
+          emailDomain: emailDomain,
+        ),
       );
 
       // Keep registration and login as two separate steps.

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../services/integrations/google_calendar_service.dart';
 import '../services/integrations/ticket_email_service.dart';
+import '../services/firebase/firebase_analytics_service.dart';
 import '../services/firebase/firebase_firestore_service.dart';
 import '../services/notifications/showtime_reminder_service.dart';
 import '../services/payment/momo_payment_service.dart';
@@ -18,17 +19,20 @@ class BookingProvider extends ChangeNotifier {
     required GoogleCalendarService googleCalendarService,
     required TicketEmailService ticketEmailService,
     required ShowtimeReminderService showtimeReminderService,
+    required FirebaseAnalyticsService analyticsService,
   }) : _firestoreService = firestoreService,
        _momoPaymentService = momoPaymentService,
        _googleCalendarService = googleCalendarService,
        _ticketEmailService = ticketEmailService,
-       _showtimeReminderService = showtimeReminderService;
+       _showtimeReminderService = showtimeReminderService,
+       _analyticsService = analyticsService;
 
   final FirebaseFirestoreService _firestoreService;
   final MomoPaymentService _momoPaymentService;
   final GoogleCalendarService _googleCalendarService;
   final TicketEmailService _ticketEmailService;
   final ShowtimeReminderService _showtimeReminderService;
+  final FirebaseAnalyticsService _analyticsService;
 
   bool _processingPayment = false;
   String? _error;
@@ -581,6 +585,22 @@ class BookingProvider extends ChangeNotifier {
       _lastQrPayload = qrPayload;
 
       await _releaseActiveReservation(clearSeats: true, clearSession: true);
+
+      final movieTitle = normalizedDetails['movieTitle'] as String?;
+      final ticketCount = _selectedSeats.isNotEmpty
+          ? _selectedSeats.length
+          : (normalizedDetails['ticketCount'] as int? ?? 0);
+
+      unawaited(
+        _analyticsService.logBookingComplete(
+          bookingId: bookingId,
+          showtimeId: showtimeId,
+          ticketCount: ticketCount,
+          totalPrice: totalPrice,
+          movieTitle: movieTitle,
+        ),
+      );
+
       return true;
     } catch (error) {
       _error = error.toString();

@@ -1,9 +1,12 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/movie_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/movie_provider.dart';
+import '../../services/firebase/firebase_analytics_service.dart';
 import '../../services/storage/local_storage_service.dart';
 import '../../utils/app_routes.dart';
 
@@ -81,12 +84,28 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     });
 
     try {
-      await Provider.of<LocalStorageService>(context, listen: false).cacheMovieSearchHistory(
-        nextHistory,
-      );
+      await Provider.of<LocalStorageService>(
+        context,
+        listen: false,
+      ).cacheMovieSearchHistory(nextHistory);
     } catch (_) {
       // Keep in-memory history even if persistence fails.
     }
+
+    unawaited(_logSearchEvent(normalized));
+  }
+
+  Future<void> _logSearchEvent(String query) async {
+    final normalized = query.trim();
+    if (normalized.isEmpty) {
+      return;
+    }
+
+    final analyticsService = Provider.of<FirebaseAnalyticsService>(
+      context,
+      listen: false,
+    );
+    await analyticsService.logSearch(searchTerm: normalized);
   }
 
   Future<void> _clearHistory() async {
@@ -95,7 +114,10 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     });
 
     try {
-      await Provider.of<LocalStorageService>(context, listen: false).clearMovieSearchHistory();
+      await Provider.of<LocalStorageService>(
+        context,
+        listen: false,
+      ).clearMovieSearchHistory();
     } catch (_) {
       // Ignore persistence errors.
     }
@@ -128,7 +150,8 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
   }
 
   Future<void> _handleToggleFavorite(MovieModel movie) async {
-    final uid = (Provider.of<AuthProvider>(context, listen: false).uid ?? '').trim();
+    final uid = (Provider.of<AuthProvider>(context, listen: false).uid ?? '')
+        .trim();
     if (uid.isEmpty) {
       final shouldLogin = await _promptLoginForFavorites();
       if (shouldLogin && mounted) {
@@ -141,7 +164,10 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
       return;
     }
 
-    await Provider.of<MovieProvider>(context, listen: false).toggleFavoriteMovie(movie);
+    await Provider.of<MovieProvider>(
+      context,
+      listen: false,
+    ).toggleFavoriteMovie(movie);
   }
 
   @override
@@ -296,6 +322,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                           setState(() {
                             _query = item;
                           });
+                          unawaited(_logSearchEvent(item));
                         },
                       ),
                     );

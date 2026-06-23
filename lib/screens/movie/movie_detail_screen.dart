@@ -10,6 +10,7 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 import '../../models/movie_model.dart';
 import '../../providers/movie_provider.dart';
+import '../../services/firebase/firebase_analytics_service.dart';
 import '../../utils/app_routes.dart';
 import '../../widgets/common/fullscreen_image_viewer.dart';
 import '../../widgets/common/inline_youtube_player.dart';
@@ -28,6 +29,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       CarouselSliderController();
   static const double _defaultTrailerAspectRatio = 16 / 9;
 
+  late final FirebaseAnalyticsService _analyticsService;
   MovieModel? _movie;
   YoutubePlayerController? _youtubeController;
   String _activeTrailerUrl = '';
@@ -40,7 +42,12 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _analyticsService = Provider.of<FirebaseAnalyticsService>(
+      context,
+      listen: false,
+    );
     _movie = widget.movie;
+    _logMovieViewedIfNeeded(_movie);
     _syncTrailerController(_movie?.trailerUrl ?? '');
     _loadMovieDetail();
   }
@@ -50,6 +57,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.movie?.movieId != widget.movie?.movieId) {
       _movie = widget.movie;
+      _logMovieViewedIfNeeded(_movie);
       _galleryIndex = 0;
       _detailError = null;
       _syncTrailerController(_movie?.trailerUrl ?? '');
@@ -203,6 +211,19 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         sanitized.endsWith('.gif') ||
         sanitized.endsWith('.bmp') ||
         sanitized.endsWith('.svg');
+  }
+
+  void _logMovieViewedIfNeeded(MovieModel? movie) {
+    if (movie == null || movie.movieId.trim().isEmpty) {
+      return;
+    }
+
+    unawaited(
+      _analyticsService.logMovieViewed(
+        movieId: movie.movieId,
+        movieTitle: movie.title,
+      ),
+    );
   }
 
   Future<void> _warmUpImageAspectRatios(List<String> imageUrls) async {

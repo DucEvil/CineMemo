@@ -3,9 +3,11 @@
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:momo_payment_flutter/momo_payment_flutter.dart';
+import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../config/app_config.dart';
+import 'web_window.dart';
 
 enum MomoPaymentStatus { success, failed, cancelled, pending }
 
@@ -45,11 +47,138 @@ class MomoPaymentService {
 
   Future<MomoPaymentResult> pay(MomoPaymentRequest request) async {
     if (kIsWeb) {
-      return MomoPaymentResult(
-        status: MomoPaymentStatus.pending,
-        orderId: request.orderId,
-        message: 'Thanh toán MoMo chưa hỗ trợ trên Web.',
+      // Web flow: call backend Cloud Functions to create payment, open payUrl, then poll for status
+      // Cloud Functions v2 - each function has its own URL
+      const createMomoUrl = 'https://createmomopayment-oyl5qwczfa-uc.a.run.app';
+      const checkMomoUrl = 'https://checkmomopayment-oyl5qwczfa-uc.a.run.app';
+
+      final dio = Dio(
+        BaseOptions(
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
       );
+      try {
+        print(
+          '[MoMo DEBUG] AppConfig.momoIpnUrl raw: "${AppConfig.momoIpnUrl}"',
+        );
+        print(
+          '[MoMo DEBUG] AppConfig.momoIpnUrl length: ${AppConfig.momoIpnUrl.length}',
+        );
+        print(
+          '[MoMo DEBUG] AppConfig.momoIpnUrl contains placeholder: ${AppConfig.momoIpnUrl.contains('example.com')}',
+        );
+
+        final ipnUrl = AppConfig.momoIpnUrl.trim();
+        print('[MoMo DEBUG] ipnUrl after trim: "$ipnUrl"');
+        print('[MoMo DEBUG] ipnUrl isEmpty: ${ipnUrl.isEmpty}');
+
+        // For web, IPN is optional since we poll for status instead
+        final finalIpnUrl = ipnUrl.isEmpty || ipnUrl.contains('example.com')
+            ? 'https://cinememo-app.web.app/momo-ipn'
+            : ipnUrl;
+
+        final payload = {
+          'orderId': request.orderId,
+          'amount': request.amount.round(),
+          'orderInfo': request.description,
+          'redirectUrl': 'https://cinememo-app.web.app/booking/momo/return',
+          'ipnUrl': finalIpnUrl,
+        };
+
+        print('[MoMo DEBUG] Sending payload to $createMomoUrl: $payload');
+
+        late Response<dynamic> createResp;
+        try {
+          createResp = await dio.post(createMomoUrl, data: payload);
+        } catch (e) {
+          print('[MoMo ERROR] Request failed: $e');
+          if (e is DioException) {
+            print(
+              '[MoMo ERROR] Response: ${e.response?.statusCode} - ${e.response?.data}',
+            );
+            return MomoPaymentResult(
+              status: MomoPaymentStatus.failed,
+              orderId: request.orderId,
+              message:
+                  'Lỗi khi tạo payment: ${e.response?.data?['error'] ?? e.message}',
+            );
+          }
+          rethrow;
+        }
+
+        final data = createResp.data as Map<String, dynamic>;
+        final payUrl = data['payUrl'] as String?;
+        final requestId = data['requestId'] as String?;
+        if (payUrl == null || payUrl.isEmpty) {
+          return MomoPaymentResult(
+            status: MomoPaymentStatus.failed,
+            orderId: request.orderId,
+            message: 'Không nhận được payUrl từ server.',
+          );
+        }
+
+        // Open payUrl in new tab and keep a reference to it.
+        final window = openWebWindow(payUrl);
+
+        // Poll for status while the payment tab is open.
+        final timeout = Duration(minutes: 5);
+        final start = DateTime.now();
+        while (DateTime.now().difference(start) < timeout) {
+          if (isWindowClosed(window)) {
+            return MomoPaymentResult(
+              status: MomoPaymentStatus.pending,
+              orderId: request.orderId,
+              message:
+                  'Trình duyệt đã đóng trang thanh toán. Vui lòng kiểm tra lại trạng thái giao dịch.',
+            );
+          }
+
+          await Future.delayed(const Duration(seconds: 3));
+          try {
+            final checkResp = await dio.post(
+              checkMomoUrl,
+              data: {
+                'orderId': request.orderId,
+                if (requestId != null) 'requestId': requestId,
+              },
+            );
+            final checkData = checkResp.data as Map<String, dynamic>;
+            final resultCode = checkData['resultCode'];
+            if (resultCode != null && resultCode == 0) {
+              try {
+                (window as dynamic)?.close();
+              } catch (_) {
+                // close might not be available on all platforms
+              }
+              return MomoPaymentResult(
+                status: MomoPaymentStatus.success,
+                orderId: request.orderId,
+                transactionId:
+                    checkData['transId']?.toString() ??
+                    checkData['requestId']?.toString(),
+                message: 'Thanh toán thành công.',
+              );
+            }
+          } catch (_) {
+            // ignore and continue polling
+          }
+        }
+
+        return MomoPaymentResult(
+          status: MomoPaymentStatus.pending,
+          orderId: request.orderId,
+          message: 'Hết thời gian chờ xác nhận thanh toán.',
+        );
+      } catch (error) {
+        return MomoPaymentResult(
+          status: MomoPaymentStatus.failed,
+          orderId: request.orderId,
+          message: 'Lỗi khi khởi tạo thanh toán trên Web: ${error.toString()}',
+        );
+      }
     }
 
     if (!isConfigured) {

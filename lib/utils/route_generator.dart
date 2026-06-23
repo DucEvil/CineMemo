@@ -126,6 +126,7 @@ class RouteGenerator {
           settings: settings,
           builder: (_) => const PersonalStatisticsScreen(),
         );
+      // Gemini translation screen was removed; fallthrough to default.
       case AppRoutes.adminDashboard:
         return MaterialPageRoute<void>(
           settings: settings,

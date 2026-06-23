@@ -1,13 +1,18 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/voucher_catalog.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/movie_model.dart';
 import '../../providers/movie_provider.dart';
+import '../../services/firebase/firebase_firestore_service.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_routes.dart';
 import '../../widgets/common/custom_bottom_nav_bar.dart';
@@ -361,12 +366,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
                         },
                       ),
                     ),
-                    const SliverToBoxAdapter(
-                      child: _SectionTitle(
-                        title: 'Đang chiếu & Sắp chiếu',
-                        subtitle: 'Grid 2 cột, chạm để xem chi tiết và đặt vé',
-                      ),
-                    ),
+
                     SliverAppBar(
                       pinned: true,
                       automaticallyImplyLeading: false,
@@ -452,9 +452,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
                         ),
                       ),
                     const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                    SliverToBoxAdapter(
-                      child: _CinemaFooter(onBackToTop: _scrollToTop),
-                    ),
+                    SliverToBoxAdapter(child: const _CinemaFooter()),
                   ],
                 ),
               ),
@@ -605,112 +603,129 @@ class _TopAccountActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = Provider.of<AuthProvider>(context);
-    if (!auth.isAuthenticated) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _TopAuthLink(
-            label: 'Đăng nhập',
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                AppRoutes.login,
-                arguments: const {'registerMode': false},
-              );
-            },
+    final localeProvider = Provider.of<LocaleProvider>(context);
+    final current = localeProvider.locale.languageCode;
+
+    Widget flagButton(String code, String label) {
+      final selected = current == code;
+      return GestureDetector(
+        onTap: () => localeProvider.setLocale(Locale(code)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: selected ? AppColors.primary.withValues(alpha: 0.08) : null,
+            border: Border.all(
+              color: selected ? AppColors.primary : Colors.transparent,
+            ),
           ),
-          Container(
-            width: 1,
-            height: 14,
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            color: AppColors.border,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? AppColors.primary : AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          _TopAuthLink(
-            label: 'Đăng ký',
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                AppRoutes.login,
-                arguments: const {'registerMode': true},
-              );
-            },
-          ),
-        ],
+        ),
       );
     }
 
-    final photoUrl = auth.photoUrl.trim();
-    final displayName = auth.displayName.trim();
-    final shortName = displayName.isEmpty ? 'User' : displayName;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        flagButton('vi', 'Vi'),
+        const SizedBox(width: 8),
+        flagButton('en', 'En'),
+        const SizedBox(width: 10),
+        Builder(
+          builder: (context) {
+            final auth = Provider.of<AuthProvider>(context);
+            if (!auth.isAuthenticated) {
+              Widget authButton({
+                required String label,
+                required bool filled,
+                required VoidCallback onTap,
+              }) {
+                return GestureDetector(
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: filled ? AppColors.primary : Colors.transparent,
+                      border: Border.all(color: AppColors.primary),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: filled ? Colors.white : AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                );
+              }
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-              backgroundImage: photoUrl.isEmpty ? null : NetworkImage(photoUrl),
-              child: photoUrl.isEmpty
-                  ? const Icon(
-                      Icons.person_rounded,
-                      color: AppColors.primary,
-                      size: 16,
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 110),
-              child: Text(
-                shortName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  authButton(
+                    label: 'Đăng nhập',
+                    filled: false,
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.login,
+                        arguments: const {'registerMode': false},
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  authButton(
+                    label: 'Đăng ký',
+                    filled: true,
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.login,
+                        arguments: const {'registerMode': true},
+                      );
+                    },
+                  ),
+                ],
+              );
+            }
+
+            final photo = auth.photoUrl.trim();
+            return GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(context, AppRoutes.profile);
+              },
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: AppColors.surfaceAlt,
+                backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
+                child: photo.isEmpty
+                    ? const Icon(
+                        Icons.person,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      )
+                    : null,
               ),
-            ),
-          ],
+            );
+          },
         ),
-      ),
+      ],
     );
   }
 }
 
-class _TopAuthLink extends StatelessWidget {
-  const _TopAuthLink({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        minimumSize: const Size(0, 0),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppColors.primary,
-          fontWeight: FontWeight.w700,
-          fontSize: 13,
-        ),
-      ),
-    );
-  }
-}
+// _TopAuthLink removed (unused)
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.title, required this.subtitle});
@@ -1728,17 +1743,14 @@ class _SupportChatBottomSheet extends StatefulWidget {
 }
 
 class _SupportChatBottomSheetState extends State<_SupportChatBottomSheet> {
-  static const List<String> _supportedTheaters = [
-    'CineMemo Landmark 81',
-    'CineMemo Thủ Đức',
-    'CineMemo Quận 7',
-    'CineMemo Hoàn Kiếm',
-    'CineMemo Cầu Giấy',
-    'CineMemo Hà Đông',
-  ];
+  // supported theaters list removed (unused)
 
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _messageScrollController = ScrollController();
+  // StreamSubscription<Map<String, dynamic>>? _requestSubscription; // Deprecated: Using Firebase Extension
+  StreamSubscription<String?>? _conversationSubscription;
+  String? _conversationId;
+  int? _pendingAssistantMessageIndex;
   final List<_SupportChatMessage> _messages = [
     const _SupportChatMessage(
       text:
@@ -1751,10 +1763,12 @@ class _SupportChatBottomSheetState extends State<_SupportChatBottomSheet> {
   void dispose() {
     _messageController.dispose();
     _messageScrollController.dispose();
+    // _requestSubscription?.cancel(); // Deprecated
+    _conversationSubscription?.cancel();
     super.dispose();
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) {
       return;
@@ -1762,80 +1776,212 @@ class _SupportChatBottomSheetState extends State<_SupportChatBottomSheet> {
 
     setState(() {
       _messages.add(_SupportChatMessage(text: text, isUser: true));
+      _messages.add(
+        const _SupportChatMessage(
+          text: 'Đang gửi yêu cầu đến Gemini... vui lòng chờ.',
+          isUser: false,
+          isLoading: true,
+        ),
+      );
+      _pendingAssistantMessageIndex = _messages.length - 1;
       _messageController.clear();
     });
     _scrollToBottom();
 
-    Future<void>.delayed(const Duration(milliseconds: 450), () {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final firestoreService = Provider.of<FirebaseFirestoreService>(
+      context,
+      listen: false,
+    );
+
+    try {
+      // Ensure conversation exists
+      if (_conversationId == null) {
+        _conversationId = await firestoreService.createAiConversation(
+          userId: authProvider.uid ?? 'guest',
+        );
+
+        // Start watching generate/{conversationId}/response field
+        // Firebase Extension writes AI response here
+        _conversationSubscription?.cancel();
+        _conversationSubscription = firestoreService
+            .watchGenerateResponse(_conversationId!)
+            .listen((responseText) {
+              if (!mounted || _pendingAssistantMessageIndex == null) return;
+              if (responseText == null) return;
+
+              setState(() {
+                final index = _pendingAssistantMessageIndex!;
+                if (index >= 0 && index < _messages.length) {
+                  _messages[index] = _SupportChatMessage(
+                    text: responseText.isNotEmpty
+                        ? responseText
+                        : 'Gemini trả về không hợp lệ. Vui lòng thử lại sau.',
+                    isUser: false,
+                    isLoading: false,
+                  );
+                }
+                _pendingAssistantMessageIndex = null;
+              });
+              _scrollToBottom();
+            });
+      }
+
+      // Append user message to conversation history
+      await firestoreService.addAiMessage(
+        conversationId: _conversationId!,
+        role: 'user',
+        text: text,
+        userId: authProvider.uid ?? 'guest',
+      );
+
+      // Build conversation context and create a generate request document.
+      // Firebase Extension will process this document and write response.
+      final prompt = _buildGeneratePrompt(text);
+      final requestId = await firestoreService.createGenerateRequest(
+        prompt: prompt,
+        userId: authProvider.uid ?? 'guest',
+        conversationId: _conversationId,
+      );
+
+      // Watch the generated response for this request.
+      _conversationSubscription?.cancel();
+      _conversationSubscription = firestoreService
+          .watchGenerateResponse(requestId)
+          .listen((responseText) {
+            if (!mounted || _pendingAssistantMessageIndex == null) return;
+            if (responseText == null) return;
+
+            setState(() {
+              final index = _pendingAssistantMessageIndex!;
+              if (index >= 0 && index < _messages.length) {
+                _messages[index] = _SupportChatMessage(
+                  text: responseText.isNotEmpty
+                      ? responseText
+                      : 'Gemini trả về không hợp lệ. Vui lòng thử lại sau.',
+                  isUser: false,
+                  isLoading: false,
+                );
+              }
+              _pendingAssistantMessageIndex = null;
+            });
+            _scrollToBottom();
+          });
+    } catch (error, stack) {
+      debugPrint('Failed to send AI message: $error');
+      debugPrint(stack.toString());
       if (!mounted) {
         return;
       }
+      final isStateErr = error is StateError;
+      final errorText = error?.toString() ?? 'Không xác định';
+      final userMessage = isStateErr
+          ? 'Không thể kết nối tới Firebase. Vui lòng kiểm tra cấu hình và kết nối.'
+          : 'Lỗi gửi yêu cầu Gemini: $errorText';
+
       setState(() {
-        _messages.add(
-          _SupportChatMessage(text: _buildAutoReply(text), isUser: false),
-        );
+        final index = _pendingAssistantMessageIndex;
+        if (index != null && index >= 0 && index < _messages.length) {
+          _messages[index] = _SupportChatMessage(
+            text: userMessage,
+            isUser: false,
+            isLoading: false,
+            isError: true,
+          );
+        }
+        _pendingAssistantMessageIndex = null;
       });
-      _scrollToBottom();
-    });
+    }
   }
 
-  String _buildAutoReply(String input) {
-    final normalized = input.toLowerCase();
-    if (normalized.contains('đặt') || normalized.contains('vé')) {
-      return 'Bạn có thể chọn phim ở trang chủ, vào suất chiếu rồi chọn ghế để đặt vé ngay.';
-    }
-    if (normalized.contains('thanh toán') || normalized.contains('momo')) {
-      return 'Hiện app hỗ trợ thanh toán MoMo. Nếu chưa quét được QR, hãy thử làm mới màn hình thanh toán.';
-    }
-    if (normalized.contains('hoàn') || normalized.contains('hủy')) {
-      return 'Bạn vào Tài khoản > Trợ giúp và phản hồi để gửi yêu cầu hủy/hoàn, đội hỗ trợ sẽ phản hồi sớm.';
-    }
-    return _buildUnknownIntentOverview();
-  }
+  // ignore: unused_element
+  String _buildGeneratePrompt(String userInput, {int maxTitles = 50}) {
+    // Lấy danh sách phim từ provider và xử lý an toàn
+    final movieProvider = Provider.of<MovieProvider>(context, listen: false);
+    final movies = [...movieProvider.nowShowing, ...movieProvider.comingSoon];
 
-  String _buildUnknownIntentOverview() {
-    final suggestedMovieLines = widget.suggestedMovies
-        .take(3)
-        .map(
-          (movie) =>
-              '- ${movie.title} (${movie.genre}, ${movie.ageLabel}, ${movie.duration} phút)',
-        )
+    final titles = movies
+        .map((m) => m.title.replaceAll('\n', ' ').trim())
+        .where((t) => t.isNotEmpty)
+        .take(maxTitles)
         .toList();
 
-    final voucherLines = widget.voucherOffers
-        .take(3)
-        .map(
-          (voucher) =>
-              '- ${voucher.code}: ${voucher.title} (hạn ${voucher.expiryDateText})',
-        )
-        .toList();
+    final encoded = jsonEncode(titles);
+    final truncatedNote = movies.length > maxTitles
+        ? ' (chỉ hiển thị ${titles.length} phim đầu tiên)'
+        : '';
 
-    return [
-      'Mình chưa hiểu rõ nội dung, bạn tham khảo nhanh các mục dưới đây nhé:',
-      '',
-      'Phim đề xuất:',
-      if (suggestedMovieLines.isEmpty)
-        '- Hiện chưa có dữ liệu phim đề xuất, bạn thử kéo xuống để tải dữ liệu mới.'
-      else
-        ...suggestedMovieLines,
-      '',
-      'Thông tin app:',
-      '- Đặt vé theo suất chiếu và chọn ghế theo thời gian thực.',
-      '- Thanh toán MoMo QR hoặc cổng thanh toán trong ứng dụng.',
-      '- Lưu review, phim yêu thích và xem thống kê cá nhân.',
-      '',
-      'Voucher đang có:',
-      if (voucherLines.isEmpty)
-        '- Hiện chưa có voucher khả dụng.'
-      else
-        ...voucherLines,
-      '',
-      'Rạp đang hỗ trợ:',
-      ..._supportedTheaters.map((theater) => '- $theater'),
-      '',
-      'Bạn có thể nhắn thêm từ khóa như "đặt vé", "voucher", "rạp" để mình hỗ trợ đúng mục hơn.',
-    ].join('\n');
+    final movieListText = titles.isEmpty ? '[]' : '$encoded$truncatedNote';
+
+    // Giữ prompt ngắn gọn và có chỉ dẫn rõ ràng
+    return '''Bạn là trợ lý ảo của CineMemo. Hãy tuân thủ các quy tắc sau:
+1. Dữ liệu phim của bạn chỉ giới hạn trong danh sách sau: $movieListText.
+2. Nếu người dùng hỏi về phim không nằm trong danh sách này, hãy trả lời: "Rất tiếc, phim này hiện không có trong danh sách chiếu của CineMemo."
+3. Tuyệt đối không được tự bịa ra phim hay lịch chiếu dựa trên kiến thức bên ngoài.
+4. Trả lời ngắn gọn, lịch sự và bằng tiếng Việt.
+
+Thông tin người dùng: môi trường ứng dụng CineMemo, có thể tư vấn lịch chiếu, voucher, thanh toán, review và tính năng đặt vé.
+
+Yêu cầu của người dùng: $userInput''';
   }
+
+  // Deprecated: Using Firebase Extension now (generate collection)
+  // void _watchRequest(String requestId) {
+  //   _requestSubscription?.cancel();
+  //   _requestSubscription =
+  //       Provider.of<FirebaseFirestoreService>(
+  //         context,
+  //         listen: false,
+  //       ).watchAiRequest(requestId).listen((data) {
+  //         debugPrint('[DEBUG] watchAiRequest received data: $data');
+  //         if (!mounted || _pendingAssistantMessageIndex == null) {
+  //           debugPrint(
+  //             '[DEBUG] watchAiRequest: not mounted or no pending index',
+  //           );
+  //           return;
+  //         }
+
+  //         final responseText = _extractAiResponse(data);
+  //         final status = (data['status'] as String?)?.trim().toLowerCase();
+  //         final isFailed = status == 'failed';
+  //         debugPrint(
+  //           '[DEBUG] watchAiRequest: responseText=$responseText, status=$status, isFailed=$isFailed',
+  //         );
+
+  //         if (responseText == null && status == 'pending') {
+  //           debugPrint(
+  //             '[DEBUG] watchAiRequest: still pending, not updating UI',
+  //           );
+  //           return;
+  //         }
+
+  //         debugPrint('[DEBUG] watchAiRequest: updating UI with response');
+  //         setState(() {
+  //           final index = _pendingAssistantMessageIndex!;
+  //           if (index >= 0 && index < _messages.length) {
+  //             _messages[index] = _SupportChatMessage(
+  //               text:
+  //                   responseText ??
+  //                   'Gemini trả về không hợp lệ. Vui lòng thử lại sau.',
+  //               isUser: false,
+  //               isLoading: false,
+  //               isError: isFailed,
+  //             );
+  //           }
+  //           _pendingAssistantMessageIndex = null;
+  //         });
+  //         _scrollToBottom();
+  //       });
+  // }
+
+  // Deprecated: Using Firebase Extension now
+  // String? _extractAiResponse(Map<String, dynamic> data) {
+  //   return data['translatedText'] as String? ??
+  //       data['response'] as String? ??
+  //       data['output'] as String? ??
+  //       data['assistantOutput'] as String? ??
+  //       data['result'] as String?;
+  // }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1948,10 +2094,40 @@ class _SupportChatBottomSheetState extends State<_SupportChatBottomSheet> {
                             color: bubbleColor,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Text(
-                            message.text,
-                            style: TextStyle(color: textColor, height: 1.35),
-                          ),
+                          child: message.isLoading
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Flexible(
+                                      child: Text(
+                                        message.text,
+                                        style: TextStyle(
+                                          color: textColor,
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  message.text,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    height: 1.35,
+                                    fontStyle: message.isError
+                                        ? FontStyle.italic
+                                        : null,
+                                  ),
+                                ),
                         ),
                       );
                     },
@@ -2018,10 +2194,17 @@ class _SupportChatBottomSheetState extends State<_SupportChatBottomSheet> {
 }
 
 class _SupportChatMessage {
-  const _SupportChatMessage({required this.text, required this.isUser});
+  const _SupportChatMessage({
+    required this.text,
+    required this.isUser,
+    this.isLoading = false,
+    this.isError = false,
+  });
 
   final String text;
   final bool isUser;
+  final bool isLoading;
+  final bool isError;
 }
 
 class _FooterBackToTopButton extends StatelessWidget {

@@ -20,10 +20,10 @@ Add the Zoho configuration to your Firestore database:
 Document: config/zohoEmail
 
 Fields:
-- smtpHost: "smtp.zoho.com" (String)
+- smtpHost: "smtppro.zoho.com" (String)
 - smtpPort: 465 (Number)
 - smtpUsername: "doduc2311@nhom6ca4.nhom6ca465httt.page" (String)
-- smtpPassword: "*Ducevil2311*" (String) [IMPORTANT: Use a strong password]
+- smtpPassword: "17EmXRQtfm1J" (String) [IMPORTANT: Use a strong password]
 - senderName: "CineMemo" (String)
 - senderEmail: "doduc2311@nhom6ca4.nhom6ca465httt.page" (String)
 ```

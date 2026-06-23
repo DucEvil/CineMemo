@@ -2,12 +2,20 @@ const admin = require("firebase-admin");
 const { onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const nodemailer = require("nodemailer");
-const { logger } = require("firebase-functions");
+const functions = require('firebase-functions');
+const { logger } = require('firebase-functions');
+const momoHandlers = require("./momo");
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const messaging = admin.messaging();
+const { GoogleAuth } = require('google-auth-library');
+const ga = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
+
+// Export MoMo payment functions
+exports.createMomoPayment = momoHandlers.createMomoPayment;
+exports.checkMomoPayment = momoHandlers.checkMomoPayment;
 
 // Cached Zoho config
 let zohoConfigCache = null;
@@ -34,7 +42,7 @@ async function getZohoConfig() {
 
   // Fallback to environment variables or defaults
   return {
-    smtpHost: process.env.ZOHO_SMTP_HOST || "smtp.zoho.com",
+    smtpHost: process.env.ZOHO_SMTP_HOST || "smtppro.zoho.com",
     smtpPort: parseInt(process.env.ZOHO_SMTP_PORT || "465", 10),
     smtpUsername: process.env.ZOHO_SMTP_USERNAME || "",
     smtpPassword: process.env.ZOHO_SMTP_PASSWORD || "",
@@ -329,3 +337,138 @@ exports.sendShowtimeReminders = onSchedule(
     }
   }
 );
+
+// Deprecated: Using Firebase Generative AI Extension instead
+// Extension automatically handles prompt updates in 'generate' collection
+// and writes responses back to the same document
+/*
+exports.onAiRequestCreate = functions.firestore
+  .document('aiRequests/{reqId}')
+  .onCreate(async (snap, ctx) => {
+    const data = snap.data() || {};
+    const conversationId = data.conversationId;
+    const requestId = snap.id;
+
+    try {
+      if (!conversationId) {
+        throw new Error('aiRequest missing conversationId');
+      }
+
+      // build prompt from conversation messages (limit last 20 messages)
+      const msgsSnap = await db
+        .collection(`aiConversations/${conversationId}/messages`)
+        .orderBy('createdAt', 'asc')
+        .get();
+
+      const all = msgsSnap.docs.map(d => d.data()).filter(Boolean);
+      const recent = all.slice(-20);
+      const prompt = recent.map(m => `${m.role}: ${m.text}`).join('\n');
+
+      // get bearer token via google-auth-library (service account)
+      const client = await ga.getClient();
+      const accessToken = await client.getAccessToken();
+      const bearer = accessToken.token || accessToken;
+
+      const MODEL =
+        String(data.modelOverride || process.env.GENERATIVE_MODEL || 'models/gemini-1.0').trim();
+      const url = `https://generativelanguage.googleapis.com/v1beta2/${MODEL}:generate`;
+      logger.info('Calling Gemini API', { model: MODEL, url });
+
+      const body = {
+        prompt: { text: prompt },
+      };
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${bearer}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const status = res.status;
+      const headersObj = {};
+      try {
+        res.headers.forEach((v, k) => (headersObj[k] = v));
+      } catch (e) {}
+
+      const responseText = await res.text();
+      let json = null;
+      try {
+        if (responseText && responseText.trim().length > 0) json = JSON.parse(responseText);
+      } catch (parseErr) {
+        logger.error('Failed to parse Generative API response JSON', { parseErr: String(parseErr), status, textSnippet: responseText ? responseText.slice(0, 1000) : '' });
+      }
+
+      if (!json && (!responseText || responseText.trim().length === 0)) {
+        throw new Error(`Empty or non-JSON response from Generative API (status=${status})`);
+      }
+
+      const assistantText =
+        (json && json?.candidates && json.candidates[0]?.content) ||
+        (json && json?.output && json.output[0]?.content) ||
+        responseText;
+
+      await db
+        .collection(`aiConversations/${conversationId}/messages`)
+        .add({
+          role: 'assistant',
+          text: assistantText,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+      await snap.ref.update({
+        status: 'done',
+        assistantText,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      logger.error('onAiRequestCreate error', err);
+      try {
+        await snap.ref.update({
+          status: 'failed',
+          error: String(err),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+    }
+  });
+*/
+
+// Expose MoMo endpoints (createMomoPayment, checkMomoPayment already exported at top)
+
+// Deprecated: Using Firebase Extension now
+// Test helper: create a conversation + user message + aiRequest to trigger processing
+/*
+exports.testCreateConversation = onRequest(async (req, res) => {
+  try {
+    const convId = req.query.id || db.collection('aiConversations').doc().id;
+    const convRef = db.collection('aiConversations').doc(convId);
+    await convRef.set({ conversationId: convId, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+
+    await convRef.collection('messages').add({
+      role: 'user',
+      text: String(req.query.text || 'Xin chào từ test!'),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const requestDoc = db.collection('aiRequests').doc();
+    await requestDoc.set({
+      requestId: requestDoc.id,
+      requestType: 'conversation',
+      userId: 'test-client',
+      conversationId: convId,
+      status: 'pending',
+      modelOverride: String(req.query.model || '').trim() || undefined,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.status(200).send({ ok: true, conversationId: convId, requestId: requestDoc.id });
+  } catch (err) {
+    logger.error('testCreateConversation error', err);
+    res.status(500).send({ ok: false, error: String(err) });
+  }
+});
+*/
+

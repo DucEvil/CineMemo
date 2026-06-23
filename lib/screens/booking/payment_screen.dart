@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 
-import '../../config/app_config.dart';
 import '../../config/voucher_catalog.dart';
 import '../../models/movie_model.dart';
 import '../../utils/app_routes.dart';
@@ -433,7 +432,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 },
                 icon: const Icon(Icons.qr_code_2_rounded),
                 label: Text(
-                  '${AppConfig.useMomoPersonalQrMode ? 'Thanh toán MoMo cá nhân' : 'Thanh toán MoMo Sandbox'} (${_formatVnd(payableTotal)})',
+                  'Thanh toán MoMo Sandbox (${_formatVnd(payableTotal)})',
                 ),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),

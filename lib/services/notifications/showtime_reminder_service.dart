@@ -72,7 +72,7 @@ class ShowtimeReminderService {
       return const ShowtimeReminderResult(
         attempted: false,
         success: false,
-        message: 'Thong bao day chua ho tro tren Web.',
+        message: '',
       );
     }
 

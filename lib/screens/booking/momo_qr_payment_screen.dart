@@ -192,7 +192,9 @@ class _MomoQrPaymentScreenState extends State<MomoQrPaymentScreen> {
     final comboTotal = (args['comboTotal'] as num?)?.toDouble() ?? 0;
     final showStartAt = _extractShowStartAtFromArgs(args);
     final usePersonalQrMode = AppConfig.useMomoPersonalQrMode;
-    final isWebGatewayFallback = kIsWeb && !usePersonalQrMode;
+    // On web, use real web gateway flow (Cloud Functions v2 URLs are hardcoded)
+    final webSupportsGateway = kIsWeb && AppConfig.hasMomoGatewayConfig;
+    final isWebGatewayFallback = false;
     final dynamicPayload = AppConfig.momoPersonalQrPayload;
     final useDynamicPersonalQr =
         usePersonalQrMode && _supportsDynamicQrPayload(dynamicPayload);
@@ -253,19 +255,23 @@ class _MomoQrPaymentScreenState extends State<MomoQrPaymentScreen> {
             ),
             child: Column(
               children: [
-                _buildMomoQrWidget(
-                  qrData: qrData,
-                  useDynamicPersonalQr: useDynamicPersonalQr,
-                ),
-                const SizedBox(height: 12),
+                if (usePersonalQrMode) ...[
+                  _buildMomoQrWidget(
+                    qrData: qrData,
+                    useDynamicPersonalQr: useDynamicPersonalQr,
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 Text(
                   usePersonalQrMode
                       ? (useDynamicPersonalQr
                             ? 'Mở app MoMo của bạn và quét QR để điền nhanh thông tin.'
                             : 'Mở app MoMo của bạn và quét QR ở trên để chuyển khoản.')
                       : (isWebGatewayFallback
-                            ? 'MoMo gateway chưa hỗ trợ trên Web. Hãy quét QR và xác nhận thủ công để hoàn tất đặt vé.'
-                            : 'Nhấn nút bên dưới để mở app MoMo thanh toán.'),
+                            ? 'MoMo gateway chưa được cấu hình cho web. Hãy quét QR và xác nhận thủ công để hoàn tất đặt vé.'
+                            : (webSupportsGateway
+                                  ? 'Nhấn nút bên dưới để mở trang thanh toán MoMo trên web.'
+                                  : 'Nhấn nút bên dưới để mở app MoMo thanh toán.')),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFF334155),
@@ -280,22 +286,26 @@ class _MomoQrPaymentScreenState extends State<MomoQrPaymentScreen> {
                             : 'Neu app khong tu dien so tien/noi dung, vui long nhap theo thong tin o tren.')
                       : (isWebGatewayFallback
                             ? 'Ghi chú: chế độ này dùng để mô phỏng trên web, không gọi callback MoMo thật.'
-                            : 'Sau khi hoàn tất, ứng dụng sẽ nhận callback deep link và tự xác nhận giao dịch.'),
+                            : (webSupportsGateway
+                                  ? 'Sau khi hoàn tất trên trang thanh toán, hệ thống sẽ kiểm tra trạng thái giao dịch tự động.'
+                                  : 'Sau khi hoàn tất, ứng dụng sẽ nhận callback deep link và tự xác nhận giao dịch.')),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFF64748B),
                     fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Tài khoản nhận: ${AppConfig.momoPersonalName} - ${AppConfig.momoPersonalPhone}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
+                if (usePersonalQrMode) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Tài khoản nhận: ${AppConfig.momoPersonalName} - ${AppConfig.momoPersonalPhone}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 12,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -332,7 +342,10 @@ class _MomoQrPaymentScreenState extends State<MomoQrPaymentScreen> {
               onPressed: bookingProvider.processingPayment
                   ? null
                   : () async {
-                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      final auth = Provider.of<AuthProvider>(
+                        context,
+                        listen: false,
+                      );
                       final uid = (auth.uid ?? '').trim();
                       if (uid.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -370,12 +383,45 @@ class _MomoQrPaymentScreenState extends State<MomoQrPaymentScreen> {
                         bookingDetails['showStartAt'] = showStartAt;
                       }
 
-                      final success = await Provider.of<BookingProvider>(context, listen: false)
-                          .checkout(
+                      // For personal QR or web fallback, require user confirmation before checkout
+                      if (isWebGatewayFallback) {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (dialogContext) => AlertDialog(
+                            title: const Text('Xác nhận thanh toán'),
+                            content: const Text(
+                              'Bạn đã hoàn tất chuyển khoản MoMo và nhận được thông báo từ MoMo chưa?\n\nChỉ nhấn "Xác nhận" khi bạn chắc chắn thanh toán đã thành công.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(dialogContext, false),
+                                child: const Text('Quay lại'),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(dialogContext, true),
+                                child: const Text('Xác nhận thanh toán'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed != true || !context.mounted) {
+                          return;
+                        }
+                      }
+
+                      final success =
+                          await Provider.of<BookingProvider>(
+                            context,
+                            listen: false,
+                          ).checkout(
                             userId: uid,
                             showtimeId: showtimeId,
                             totalPrice: totalPrice,
                             bookingDetails: bookingDetails,
+                            // Skip payment gateway when using personal QR or when web gateway is not configured.
                             skipPaymentGateway:
                                 usePersonalQrMode || isWebGatewayFallback,
                           );
@@ -388,10 +434,14 @@ class _MomoQrPaymentScreenState extends State<MomoQrPaymentScreen> {
                         context,
                         AppRoutes.bookingSuccess,
                         arguments: {
-                          'bookingId': Provider.of<BookingProvider>(context, listen: false)
-                              .lastBookingId,
-                          'qrPayload': Provider.of<BookingProvider>(context, listen: false)
-                              .lastQrPayload,
+                          'bookingId': Provider.of<BookingProvider>(
+                            context,
+                            listen: false,
+                          ).lastBookingId,
+                          'qrPayload': Provider.of<BookingProvider>(
+                            context,
+                            listen: false,
+                          ).lastQrPayload,
                         },
                       );
                     },

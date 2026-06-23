@@ -9,12 +9,13 @@ class FirebaseAuthService {
 
   FirebaseAuthService({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
     : _firebaseAuth = firebaseAuth,
-      _googleSignIn = kIsWeb
-          ? null
-          : (googleSignIn ??
-                GoogleSignIn(
-                  scopes: const <String>['email', calendarEventsScope],
-                ));
+      _googleSignIn =
+          googleSignIn ??
+          GoogleSignIn(
+            clientId:
+                '150666245622-j28ii7s3kt9j8if3smu9b5ioaqdaq4be.apps.googleusercontent.com',
+            scopes: const <String>['email', calendarEventsScope],
+          );
 
   FirebaseAuth? _firebaseAuth;
   final GoogleSignIn? _googleSignIn;
@@ -93,7 +94,7 @@ class FirebaseAuthService {
     List<String> requiredScopes = const <String>[calendarEventsScope],
   }) async {
     final googleSignIn = _googleSignIn;
-    if (kIsWeb || googleSignIn == null || !isGoogleUserSignedIn) {
+    if (googleSignIn == null) {
       return null;
     }
 

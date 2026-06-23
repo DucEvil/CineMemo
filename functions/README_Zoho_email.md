@@ -10,10 +10,10 @@ npm install
 2) Set Zoho SMTP environment variables for Firebase Functions using your email `doduc2311@nhom6ca4.nhom6ca465httt.page`:
 
 ```bash
-firebase functions:config:set zoho.smtp_host="smtp.zoho.com" \
+firebase functions:config:set zoho.smtp_host="smtppro.zoho.com" \
   zoho.smtp_port="465" \
   zoho.smtp_username="doduc2311@nhom6ca4.nhom6ca465httt.page" \
-  zoho.smtp_password="*Ducevil2311*" \
+  zoho.smtp_password="17EmXRQtfm1J" \
   zoho.sender_name="CineMemo" \
   zoho.sender_email="doduc2311@nhom6ca4.nhom6ca465httt.page"
 ```

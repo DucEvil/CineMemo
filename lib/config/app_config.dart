@@ -16,12 +16,20 @@
 
   static const String momoMerchantCode = String.fromEnvironment(
     'MOMO_MERCHANT_CODE',
+    defaultValue: '',
   );
   static const String momoPartnerCode = String.fromEnvironment(
     'MOMO_PARTNER_CODE',
+    defaultValue: 'MOMO',
   );
-  static const String momoAccessKey = String.fromEnvironment('MOMO_ACCESS_KEY');
-  static const String momoSecretKey = String.fromEnvironment('MOMO_SECRET_KEY');
+  static const String momoAccessKey = String.fromEnvironment(
+    'MOMO_ACCESS_KEY',
+    defaultValue: 'F8BBA842ECF85',
+  );
+  static const String momoSecretKey = String.fromEnvironment(
+    'MOMO_SECRET_KEY',
+    defaultValue: 'K951B6PE1waDMi640xX08PD3vg6EkVlz',
+  );
   static const String momoAppScheme = String.fromEnvironment(
     'MOMO_APP_SCHEME',
     defaultValue: 'cinememo',
@@ -40,7 +48,7 @@
   );
   static const String momoPaymentMode = String.fromEnvironment(
     'MOMO_PAYMENT_MODE',
-    defaultValue: 'personal_qr',
+    defaultValue: 'gateway',
   );
   static const String momoPersonalQrPayload = String.fromEnvironment(
     'MOMO_PERSONAL_QR_PAYLOAD',
@@ -80,6 +88,12 @@
   );
   static const String ticketEmailFunctionUrl = String.fromEnvironment(
     'TICKET_EMAIL_FUNCTION_URL',
+    defaultValue: 'https://sendticketemail-oyl5qwczfa-uc.a.run.app',
+  );
+
+  static const String momoBackendUrl = String.fromEnvironment(
+    'MOMO_BACKEND_URL',
+    defaultValue: '',
   );
 
   static bool get hasTicketEmailFunction =>
@@ -117,17 +131,12 @@
       !_isPlaceholderCredential(momoSecretKey);
 
   static bool get useMomoGatewayMode =>
-      momoPaymentMode.trim().toLowerCase() == 'gateway';
+      momoPaymentMode.trim().toLowerCase() == 'gateway' || hasMomoGatewayConfig;
 
   static bool get useMomoPersonalQrMode => !useMomoGatewayMode;
 
-  // Trả về true nếu đã cấu hình Cloud Function gửi email hoặc cấu hình đầy đủ SMTP
+  // Trả về true nếu đã cấu hình Cloud Function gửi email vé
   static bool get hasTicketEmailConfig {
-    final smtpConfigured =
-        ticketEmailSmtpHost.trim().isNotEmpty &&
-        ticketEmailSmtpUsername.trim().isNotEmpty &&
-        ticketEmailSmtpPassword.trim().isNotEmpty;
-
-    return hasTicketEmailFunction || smtpConfigured;
+    return hasTicketEmailFunction;
   }
 }

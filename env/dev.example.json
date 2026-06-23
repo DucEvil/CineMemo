@@ -7,7 +7,7 @@
   "MOMO_APP_SCHEME": "cinememo",
   "MOMO_CALLBACK_HOST": "payment-callback",
   "MOMO_IPN_URL": "https://your-server.com/momo-ipn",
-  "TICKET_EMAIL_SMTP_HOST": "smtp.gmail.com",
+  "TICKET_EMAIL_SMTP_HOST": "smtppro.gmail.com",
   "TICKET_EMAIL_SMTP_PORT": "465",
   "TICKET_EMAIL_SMTP_SSL": "true",
   "TICKET_EMAIL_SMTP_USERNAME": "your_sender@gmail.com",

@@ -73,11 +73,11 @@ firebase deploy --only functions:sendShowtimeReminders
 ### 4) Run app
 
 ```bash
-//emulator
-flutter run --dart-define-from-file=env/dev.json
+# Use the deployed Cloud Function URL for ticket email sending.
+flutter run --dart-define=TICKET_EMAIL_FUNCTION_URL="https://<region>-<project>.cloudfunctions.net/sendTicketEmail"
 
-//chrome
-flutter run -d chrome --dart-define-from-file=env/dev.json
+# Chrome
+flutter run -d chrome --dart-define=TICKET_EMAIL_FUNCTION_URL="https://<region>-<project>.cloudfunctions.net/sendTicketEmail"
 ```
 
 

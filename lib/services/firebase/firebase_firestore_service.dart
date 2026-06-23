@@ -321,6 +321,8 @@ class FirebaseFirestoreService {
     await batch.commit();
   }
 
+  // Use collection name from AppConstants to stay in sync with server extension.
+
   Future<void> createBooking({
     required String bookingId,
     required String userId,
@@ -362,6 +364,187 @@ class FirebaseFirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       },
     );
+  }
+
+  Future<String> createAiRequest({
+    required String requestType,
+    required String prompt,
+    required String userId,
+    String? targetLanguage,
+    String? model,
+    String? conversationId,
+  }) async {
+    final document = _requiredFirestore
+        .collection(AppConstants.aiRequestsCollection)
+        .doc();
+
+    await document.set({
+      'requestId': document.id,
+      'requestType': requestType,
+      'userId': userId.trim().isNotEmpty ? userId.trim() : 'guest',
+      'prompt': prompt.trim(),
+      if (conversationId != null && conversationId.trim().isNotEmpty)
+        'conversationId': conversationId.trim(),
+      if (targetLanguage != null && targetLanguage.trim().isNotEmpty)
+        'targetLanguage': targetLanguage.trim(),
+      if (model != null && model.trim().isNotEmpty) 'model': model.trim(),
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    return document.id;
+  }
+
+  Future<String> createAiConversation({
+    required String userId,
+    Map<String, dynamic> metadata = const {},
+  }) async {
+    final document = _requiredFirestore.collection('aiConversations').doc();
+    final payload = {
+      'conversationId': document.id,
+      'userId': userId.trim().isNotEmpty ? userId.trim() : 'guest',
+      'metadata': metadata,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    await document.set(payload);
+    return document.id;
+  }
+
+  Future<String> addAiMessage({
+    required String conversationId,
+    required String role, // 'user' | 'assistant'
+    required String text,
+    String? model,
+    String? userId,
+  }) async {
+    final messages = _requiredFirestore
+        .collection('aiConversations')
+        .doc(conversationId)
+        .collection('messages');
+
+    final doc = messages.doc();
+    final payload = {
+      'messageId': doc.id,
+      'role': role,
+      'text': text.trim(),
+      if (model != null && model.trim().isNotEmpty) 'model': model.trim(),
+      if (userId != null && userId.trim().isNotEmpty) 'userId': userId.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    await doc.set(payload);
+    return doc.id;
+  }
+
+  Stream<Map<String, dynamic>> watchConversationMessages(
+    String conversationId,
+  ) {
+    final firestore = _currentFirestore;
+    final normalized = conversationId.trim();
+    if (firestore == null || normalized.isEmpty) {
+      return Stream<Map<String, dynamic>>.value(<String, dynamic>{});
+    }
+
+    final query = firestore
+        .collection('aiConversations')
+        .doc(normalized)
+        .collection('messages')
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map((snap) {
+          if (snap.docs.isEmpty) return <String, dynamic>{};
+          // return last assistant message if present
+          final assistant = snap.docs.lastWhere(
+            (d) => (d.data()['role'] as String?) == 'assistant',
+            orElse: () => snap.docs.last,
+          );
+          return assistant.data();
+        });
+
+    return query;
+  }
+
+  Stream<Map<String, dynamic>> watchAiRequest(String requestId) {
+    final firestore = _currentFirestore;
+    final normalizedRequestId = requestId.trim();
+
+    if (firestore == null || normalizedRequestId.isEmpty) {
+      return Stream<Map<String, dynamic>>.value(<String, dynamic>{});
+    }
+
+    // Listen to both the original request document and the extension's generated
+    // response document. Prefer the aiRequests doc data when present, otherwise
+    // fall back to the generate doc (extension output).
+    final requestDoc = firestore
+        .collection(AppConstants.aiRequestsCollection)
+        .doc(normalizedRequestId)
+        .snapshots()
+        .map((snapshot) => snapshot.data() ?? <String, dynamic>{});
+
+    final generateDoc = firestore
+        .collection(AppConstants.aiGenerateCollection)
+        .doc(normalizedRequestId)
+        .snapshots()
+        .map((snapshot) => snapshot.data() ?? <String, dynamic>{});
+
+    // Also listen for generate docs that reference this request via a field
+    // `requestId` (some workers write generated output to a different doc id).
+    final generateQuery = firestore
+        .collection(AppConstants.aiGenerateCollection)
+        .where('requestId', isEqualTo: normalizedRequestId)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.docs.isEmpty) return <String, dynamic>{};
+          return snapshot.docs.first.data();
+        });
+
+    return Stream<Map<String, dynamic>>.multi((controller) {
+      Map<String, dynamic> lastRequest = <String, dynamic>{};
+      Map<String, dynamic> lastGenerate = <String, dynamic>{};
+      Map<String, dynamic> lastGenerateByRequest = <String, dynamic>{};
+
+      void emitPreferred() {
+        // Prefer generated outputs (either by matching doc id or by requestId)
+        if (lastGenerateByRequest.isNotEmpty) {
+          controller.add(lastGenerateByRequest);
+          return;
+        }
+        if (lastGenerate.isNotEmpty) {
+          controller.add(lastGenerate);
+          return;
+        }
+        // Fall back to the request document (may be pending)
+        if (lastRequest.isNotEmpty) {
+          controller.add(lastRequest);
+          return;
+        }
+        // emit empty map if no data yet
+        controller.add(<String, dynamic>{});
+      }
+
+      final sub1 = requestDoc.listen((data) {
+        lastRequest = data;
+        emitPreferred();
+      });
+      final sub2 = generateDoc.listen((data) {
+        lastGenerate = data;
+        emitPreferred();
+      });
+      final sub3 = generateQuery.listen((data) {
+        lastGenerateByRequest = data;
+        emitPreferred();
+      });
+
+      controller.onCancel = () async {
+        await sub1.cancel();
+        await sub2.cancel();
+        await sub3.cancel();
+      };
+    });
   }
 
   Future<void> createReview(ReviewModel review) async {
@@ -635,5 +818,53 @@ class FirebaseFirestoreService {
 
           return bookings;
         });
+  }
+
+  /// Update prompt in generate/{conversationId} document for Firebase Generative AI Extension
+  /// Create/update generate document with prompt for Firebase Extension
+  /// Must include userId in initial create to pass Firestore rules
+  Future<String> createGenerateRequest({
+    required String prompt,
+    required String userId,
+    String? conversationId,
+  }) async {
+    final firestore = _requiredFirestore;
+    final requestDoc = firestore.collection('generate').doc();
+
+    final payload = {
+      'requestId': requestDoc.id,
+      'prompt': prompt.trim(),
+      'userId': userId.trim().isNotEmpty ? userId.trim() : 'guest',
+      if (conversationId != null && conversationId.trim().isNotEmpty)
+        'conversationId': conversationId.trim(),
+      'createTime': FieldValue.serverTimestamp(),
+    };
+
+    await requestDoc.set(payload);
+    return requestDoc.id;
+  }
+
+  /// Watch response field from generate/{requestId} document
+  /// Extension writes to this field after processing the prompt
+  Stream<String?> watchGenerateResponse(String requestId) {
+    final firestore = _currentFirestore;
+    final normalized = requestId.trim();
+
+    if (firestore == null || normalized.isEmpty) {
+      return Stream<String?>.value(null);
+    }
+
+    return firestore.collection('generate').doc(normalized).snapshots().map((
+      snapshot,
+    ) {
+      if (!snapshot.exists) return null;
+      final data = snapshot.data();
+      if (data == null) return null;
+
+      final response = data['response'] as String?;
+      return response != null && response.trim().isNotEmpty
+          ? response.trim()
+          : null;
+    });
   }
 }

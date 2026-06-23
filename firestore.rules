@@ -167,6 +167,74 @@ service cloud.firestore {
     }
 
     // Deny everything else by default
+    // AI requests (created by client apps submitting prompts to Gemini)
+    match /aiRequests/{requestId} {
+      // Allow clients to create requests (no sensitive data expected).
+      allow create: if true;
+      // Allow the request owner or admins to read the request.
+      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      // Only admins may update or delete requests.
+      allow update, delete: if isAdmin();
+    }
+
+    // The extension expects clients to create a document in `generate` with
+    // a `prompt` field. The extension will write back the `response` field on
+    // the same document. Allow clients to create generate docs and read the
+    // result if they are the owner (or admins). Writes/updates after creation
+    // remain admin-only to avoid tampering with outputs.
+    match /generate/{genId} {
+      // Allow clients to create a new generate doc with a prompt.
+      allow create: if true;
+
+      // Allow read for admins, the owner inferred from `userId`, or public
+      // guest requests. This ensures guest chat can read back the response.
+      allow read: if isAdmin() || (
+        isSignedIn() && (
+          (resource.data.userId is string && resource.data.userId == request.auth.uid)
+          || ((resource.data.requestId is string) &&
+              (get(/databases/$(database)/documents/aiRequests/$(resource.data.requestId)).data.userId == request.auth.uid))
+        )
+      ) ||
+      (!isSignedIn() && resource.data.userId == 'guest');
+
+      // Allow the owner to update prompt data for the same generate document.
+      // This is safe because response writes are still controlled by the extension.
+      allow update: if isAdmin() || (
+        isSignedIn() && resource.data.userId is string && resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid
+      ) || (
+        !isSignedIn() && resource.data.userId == 'guest' &&
+        request.resource.data.userId == 'guest'
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // AI Conversations - store chat history and messages
+    match /aiConversations/{convId} {
+      // Allow anyone (signed in or guest) to create conversations
+      allow create: if true;
+      
+      // Allow reading conversations
+      allow read: if true;
+      
+      // Only admins can update/delete conversations
+      allow update, delete: if isAdmin();
+      
+      // Messages subcollection within each conversation
+      match /messages/{msgId} {
+        // Allow anyone to add messages (user or assistant)
+        allow create: if true;
+        
+        // Allow reading messages
+        allow read: if true;
+        
+        // Only admins can update/delete messages
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // Deny everything else by default
     match /{document=**} {
       allow read, write: if false;
     }

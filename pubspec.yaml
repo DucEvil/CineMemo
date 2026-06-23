@@ -41,6 +41,7 @@ dependencies:
   firebase_auth: ^5.5.2
   cloud_firestore: ^5.6.6
   google_sign_in: ^6.2.2
+  google_sign_in_web: ^0.12.1
   geolocator: ^13.0.2
   momo_payment_flutter: any
   qr_flutter: ^4.1.0
@@ -53,11 +54,13 @@ dependencies:
   connectivity_plus: ^6.1.4
   cached_network_image: ^3.4.1
   uuid: ^4.5.1
-  mailer: ^6.4.1
   firebase_messaging: ^15.2.5
+  firebase_analytics: ^11.0.0
   firebase_storage: ^12.4.10
   app_links: ^6.4.1
   share_plus: ^10.1.2
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

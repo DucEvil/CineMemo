@@ -17,4 +17,9 @@
   static const String transactionsCollection = 'transactions';
   static const String logsCollection = 'logs';
   static const String bannersCollection = 'banners';
+  // The Firebase Extension is configured to use the `generate` collection.
+  // Create requests in `generate` so the extension processes them and writes
+  // the `response` field on the same document.
+  static const String aiRequestsCollection = 'generate';
+  static const String aiGenerateCollection = 'generate';
 }

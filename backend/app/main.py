@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import verify_firebase_token
 from app.config import get_cors_origins
+from app import momo
 
 app = FastAPI(title="Movie Ticket API")
 
@@ -29,3 +30,7 @@ def get_me(user=Depends(verify_firebase_token)):
         "email": user.get("email"),
         "name": user.get("name"),
     }
+
+
+# Register momo router
+app.include_router(momo.router)

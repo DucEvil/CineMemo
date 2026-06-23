@@ -107,7 +107,7 @@ class GoogleCalendarService {
         attempted: true,
         success: false,
         message:
-            'Không lấy được quyền Google Calendar. ạn vẫn đặt vé thành công.',
+            'Không lấy được quyền Google Calendar. Bạn vẫn đặt vé thành công.',
       );
     }
 

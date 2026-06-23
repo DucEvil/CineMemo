@@ -4,6 +4,7 @@ class AppRoutes {
   static const String voucherList = '/voucher-list';
   static const String login = '/login';
   static const String birthdate = '/birthdate';
+  static const String geminiTranslation = '/gemini-translation';
   static const String movieDetail = '/movie-detail';
   static const String showtimeSelection = '/showtime-selection';
   static const String seatSelection = '/seat-selection';
