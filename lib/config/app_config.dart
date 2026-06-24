@@ -91,6 +91,15 @@
     defaultValue: 'https://sendticketemail-oyl5qwczfa-uc.a.run.app',
   );
 
+  static const String googleCloudTranslateApiUrl = String.fromEnvironment(
+    'GOOGLE_CLOUD_TRANSLATE_API_URL',
+    defaultValue: 'https://translation.googleapis.com/language/translate/v2',
+  );
+  static const String googleCloudTranslateApiKey = String.fromEnvironment(
+    'GOOGLE_CLOUD_TRANSLATE_API_KEY',
+    defaultValue: '',
+  );
+
   static const String momoBackendUrl = String.fromEnvironment(
     'MOMO_BACKEND_URL',
     defaultValue: '',
@@ -139,4 +148,7 @@
   static bool get hasTicketEmailConfig {
     return hasTicketEmailFunction;
   }
+
+  static bool get hasGoogleCloudTranslateApiKey =>
+      googleCloudTranslateApiKey.trim().isNotEmpty;
 }

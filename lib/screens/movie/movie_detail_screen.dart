@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 import '../../models/movie_model.dart';
+import '../../widgets/common/translated_text.dart';
 import '../../providers/movie_provider.dart';
 import '../../services/firebase/firebase_analytics_service.dart';
 import '../../utils/app_routes.dart';
@@ -692,8 +693,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               ),
               const SizedBox(height: 12),
               if (movie.description.isNotEmpty)
-                Text(
-                  movie.description,
+                TranslatedText(
+                  text: movie.description,
+                  sourceLanguageCode: 'vi',
                   style: const TextStyle(
                     color: Color(0xFF334155),
                     height: 1.45,

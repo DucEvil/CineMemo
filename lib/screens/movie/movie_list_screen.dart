@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/voucher_catalog.dart';
+import '../../localization/app_localizations.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/movie_model.dart';
@@ -567,22 +568,22 @@ class _TopBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'CineMemo',
-                    style: TextStyle(
+                    AppLocalizations.of(context).appName,
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'Đặt vé nhanh, lưu kỷ niệm điện ảnh của bạn',
-                    style: TextStyle(
+                    AppLocalizations.of(context).appSubtitle,
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
                     ),
@@ -674,7 +675,7 @@ class _TopAccountActions extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   authButton(
-                    label: 'Đăng nhập',
+                    label: AppLocalizations.of(context).login,
                     filled: false,
                     onTap: () {
                       Navigator.pushNamed(
@@ -686,7 +687,7 @@ class _TopAccountActions extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   authButton(
-                    label: 'Đăng ký',
+                    label: AppLocalizations.of(context).register,
                     filled: true,
                     onTap: () {
                       Navigator.pushNamed(

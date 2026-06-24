@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../models/review_model.dart';
+import '../../widgets/common/translated_text.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/review_provider.dart';
 import '../../services/firebase/firebase_firestore_service.dart';
@@ -91,7 +92,8 @@ class _ReviewListScreenState extends State<ReviewListScreen> {
   }
 
   Future<void> _openCreateReview() async {
-    final uid = (Provider.of<AuthProvider>(context, listen: false).uid ?? '').trim();
+    final uid = (Provider.of<AuthProvider>(context, listen: false).uid ?? '')
+        .trim();
     if (uid.isEmpty) {
       if (!mounted) {
         return;
@@ -112,7 +114,10 @@ class _ReviewListScreenState extends State<ReviewListScreen> {
   }
 
   Future<void> _refreshFeed() async {
-    await Provider.of<ReviewProvider>(context, listen: false).refreshCurrentUserReviewCount();
+    await Provider.of<ReviewProvider>(
+      context,
+      listen: false,
+    ).refreshCurrentUserReviewCount();
   }
 
   Widget _buildRatingBadge(double rating) {
@@ -288,8 +293,9 @@ class _ReviewListScreenState extends State<ReviewListScreen> {
           if (review.content.trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                review.content.trim(),
+              child: TranslatedText(
+                text: review.content.trim(),
+                sourceLanguageCode: 'vi',
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Color(0xFF334155), height: 1.4),
@@ -387,7 +393,10 @@ class _ReviewListScreenState extends State<ReviewListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final firestoreService = Provider.of<FirebaseFirestoreService>(context, listen: false);
+    final firestoreService = Provider.of<FirebaseFirestoreService>(
+      context,
+      listen: false,
+    );
 
     return Scaffold(
       appBar: AppBar(

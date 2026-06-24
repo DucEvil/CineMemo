@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'bootstrap/app_bootstrap.dart';
+import 'localization/app_localizations.dart';
 import 'providers/app_state_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/auth_provider.dart';
@@ -23,6 +24,7 @@ import 'services/notifications/showtime_reminder_service.dart';
 import 'services/payment/momo_payment_service.dart';
 import 'services/firebase/firebase_storage_service.dart';
 import 'services/storage/local_storage_service.dart';
+import 'services/translation/translation_service.dart';
 import 'services/utils/network_info.dart';
 import 'services/weather/weather_service.dart';
 import 'utils/app_colors.dart';
@@ -49,6 +51,7 @@ class CineMemoRootApp extends StatelessWidget {
           ),
         ),
         Provider(create: (_) => TicketEmailService()),
+        Provider(create: (_) => TranslationService()),
         Provider(
           create: (context) => ShowtimeReminderService(
             firestoreService: Provider.of<FirebaseFirestoreService>(
@@ -210,6 +213,7 @@ class CineMemoRootApp extends StatelessWidget {
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
+              AppLocalizations.delegate,
             ],
             supportedLocales: const [Locale('vi'), Locale('en')],
             debugShowCheckedModeBanner: false,

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../models/review_model.dart';
+import '../../widgets/common/translated_text.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/review_provider.dart';
 import '../../services/firebase/firebase_firestore_service.dart';
@@ -115,9 +116,10 @@ class _MyReviewScreenState extends State<MyReviewScreen> {
     setState(() => _deletingReviewIds.add(review.reviewId));
 
     try {
-      await Provider.of<FirebaseFirestoreService>(context, listen: false).deleteReview(
-        review.reviewId,
-      );
+      await Provider.of<FirebaseFirestoreService>(
+        context,
+        listen: false,
+      ).deleteReview(review.reviewId);
 
       if (!mounted) {
         return;
@@ -144,7 +146,10 @@ class _MyReviewScreenState extends State<MyReviewScreen> {
   }
 
   Future<void> _refresh() async {
-    await Provider.of<ReviewProvider>(context, listen: false).refreshCurrentUserReviewCount();
+    await Provider.of<ReviewProvider>(
+      context,
+      listen: false,
+    ).refreshCurrentUserReviewCount();
   }
 
   Widget _buildRatingBadge(double rating) {
@@ -261,8 +266,9 @@ class _MyReviewScreenState extends State<MyReviewScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            review.content,
+          TranslatedText(
+            text: review.content,
+            sourceLanguageCode: 'vi',
             style: const TextStyle(color: Color(0xFF334155), height: 1.4),
           ),
           if (imageUrl.isNotEmpty)
@@ -455,7 +461,10 @@ class _MyReviewScreenState extends State<MyReviewScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Nhật ký của tôi')),
       body: StreamBuilder<List<ReviewModel>>(
-        stream: Provider.of<FirebaseFirestoreService>(context, listen: false).watchUserReviews(uid),
+        stream: Provider.of<FirebaseFirestoreService>(
+          context,
+          listen: false,
+        ).watchUserReviews(uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
